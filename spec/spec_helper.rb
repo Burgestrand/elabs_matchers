@@ -14,7 +14,7 @@ end
 module RSpec
   module Matchers
     def fail_assertion(message=nil, &block)
-      Matchers::RaiseError.new(RSpec::Expectations::ExpectationNotMetError, message, &block)
+      raise_error(RSpec::Expectations::ExpectationNotMetError, message, &block)
     end
   end
 end
