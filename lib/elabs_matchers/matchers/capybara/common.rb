@@ -35,57 +35,44 @@ module ElabsMatchers
 
         RSpec::Matchers.define :have_table_row do |table_name, row|
           match do |page|
-            table = page.find(:xpath, XPath::HTML.table(table_name))
-
-            if row.is_a? Hash
-              exps = row.map do |header, value|
-                col_index = table.all("thead th").index { |th| th.text.include?(header) }
-                col_index = if col_index then col_index + 1 else 0 end
-                XPath.child(:td, :th)[col_index.to_s.to_sym][XPath.contains(value)]
-              end
-              exps = exps.inject { |agg, exp| agg & exp }
-              table.has_xpath?(XPath.descendant['tr'][exps])
-            else
-              exps = []
-              row.each_with_index do |value, index|
-                exps << XPath.child(:td)[(index + 1).to_s.to_sym][XPath.contains(value)]
-              end
-              exps = exps.inject { |agg, exp| agg & exp }
-
-              table.has_xpath?(XPath.descendant['tr'][exps])
-            end
+            table = table_on(page)
+            table.has_xpath?(row_xpath(table, row))
           end
 
           match_for_should_not do |page|
-            table = page.find(:xpath, XPath::HTML.table(table_name))
-
-            if row.is_a? Hash
-              exps = row.map do |header, value|
-                col_index = table.all("thead th").index { |th| th.text.include?(header) }
-                col_index = if col_index then col_index + 1 else 0 end
-                XPath.child(:td, :th)[col_index.to_s.to_sym][XPath.contains(value)]
-              end
-              exps = exps.inject { |agg, exp| agg & exp }
-              table.has_no_xpath?(XPath.descendant['tr'][exps])
-            else
-              exps = []
-              row.each_with_index do |value, index|
-                exps << XPath.child(:td)[(index + 1).to_s.to_sym][XPath.contains(value)]
-              end
-              exps = exps.inject { |agg, exp| agg & exp }
-
-              table.has_no_xpath?(XPath.descendant['tr'][exps])
-            end
+            table = table_on(page)
+            table.has_no_xpath?(row_xpath(table, row))
           end
 
           failure_message_for_should do |page|
-            table = page.find(:xpath, XPath::HTML.table(table_name))
-            ascii_table = table.all('tr').map do |tr|
+            ascii_table = table_on(page).all('tr').map do |tr|
               '| ' + tr.all('td,th').map { |td| td.text.strip.ljust(21) }.join(' | ') + ' |'
             end.join("\n")
             "expected #{row.inspect} to be included in the table #{table_name}, but it wasn't:\n\n#{ascii_table}"
           end
           failure_message_for_should_not { |page| "expected there to be no table #{table_name} with row #{row.inspect}, but there was." }
+
+          # Support methods:
+
+          define_method(:table_on) do |page|
+            page.find(:xpath, XPath::HTML.table(table_name))
+          end
+
+          def row_xpath(table, row)
+            exps = if row.is_a? Hash
+              row.map do |header, value|
+                col_index = table.all("thead th").index { |th| th.text.include?(header) }
+                col_index = if col_index then col_index + 1 else 0 end
+                XPath.child(:td, :th)[col_index.to_s.to_sym][XPath.contains(value)]
+              end
+            else
+              row.each_with_index.map do |value, index|
+                exps << XPath.child(:td)[(index + 1).to_s.to_sym][XPath.contains(value)]
+              end
+            end
+
+            XPath.descendant['tr'][exps.inject { |agg, exp| agg & exp }]
+          end
         end
 
         ##
